@@ -31,31 +31,18 @@ pub struct Number {
 }
 
 pub struct BingoCard<'a> {
-    numbers: [[&'a Number; 5];5]
+    numbers: Vec<Vec<&'a Number>>
 }
 
 impl<'a> BingoCard<'a> {
-    pub fn populate_from_str(card_numbers: [[&str; 5];5]) -> BingoCard {
-        // Initialize struct
-        let mut numbers: [[&Number; 5];5];        
-        for (i, row) in card_numbers.into_iter().enumerate() {
-            for (j,column) in row.into_iter().enumerate() {
-                let num: u32 = FromStr::from_str(*column).unwrap();
-                numbers[i][j] = &Number {
-                    number: num,
-                    marked: false
-                };
-            }
-        }
-        BingoCard { numbers: numbers }        
-    }
-
-    pub fn new() -> BingoCard {
-
+    pub fn new() -> BingoCard<'a> {
+        let num_vec = vec![&Number { number: 0, marked: false }; 5];
+        BingoCard { 
+            numbers: vec![num_vec;5]
+         }
     }
 
     fn has_winner(&self){
-
     }
 }
 
@@ -69,12 +56,24 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut lines_iter = lines.into_iter();
     lines_iter.next();  // skip call number line
 
-    let mut card_numbers: Vec<&Vec<&str>> = Vec::new();
-    let mut row: Vec<&str> = Vec::new();
-
     let mut cards: Vec<BingoCard> = Vec::new();
+    let mut card: &BingoCard;
+    let mut count = 0;
     for (i, line) in lines_iter.enumerate() {
-        
+        if line == "" {
+            // Next line begins new card
+            cards.push(BingoCard::new());
+            card = cards.last().unwrap();
+
+        } else {
+            let numbers = line.split(",");
+            for (j, number) in numbers.enumerate() {
+                card.numbers[i][count] = &Number {
+                    number: FromStr::from_str(number).unwrap();
+                    mark
+                }
+            }
+        }
     }
 
     Ok(())
@@ -82,6 +81,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
 fn get_call_numbers(lines: &Vec<&str>) -> Vec<u32>
 {
+    let mut bingo_card = BingoCard::new();
+
     let mut numbers: Vec<u32> = Vec::new();
     let line = lines[0].split(',');
     for number in line {
