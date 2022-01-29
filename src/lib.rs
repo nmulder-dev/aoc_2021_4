@@ -3,6 +3,7 @@ use std::fs;
 use std::env;
 use std::str::FromStr;
 use std::str;
+use std::io::{self, Write};
 
 pub struct Config {
     filename: String,
@@ -30,53 +31,112 @@ pub struct Number {
     marked: bool,
 }
 
-pub struct BingoCard<'a> {
-    numbers: Vec<Vec<&'a Number>>
+pub struct BingoCard {
+    numbers: Vec<Vec<Number>>
 }
 
-impl<'a> BingoCard<'a> {
-    pub fn new() -> BingoCard<'a> {
-        let num_vec = vec![&Number { number: 0, marked: false }; 5];
+impl BingoCard {
+    pub fn new() -> BingoCard {
+        // Return (0, false) initialized 5 x 5 vector of vectors
         BingoCard { 
-            numbers: vec![num_vec;5]
+            numbers: vec![vec![Number { number: 0, marked: false }; 5];5]
          }
     }
 
-    fn has_winner(&self){
+    fn is_empty(&self) -> bool {
+        let mut empty = true;
+
+        for number in self.numbers.iter() {
+            for value in number {
+                if value.number != 0 {
+                    empty = false;
+                }
+            }
+        }
+        empty
+    }
+
+    fn has_winner(&self) {
+    }
+}
+
+impl Copy for Number {}
+
+impl Clone for Number {
+    fn clone(&self) -> Self {
+        *self
     }
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.filename)?;
-    let lines: Vec<&str> = get_lines_vec(&contents);
+    let lines: Vec<String> = get_lines_vec(&contents);
 
     // YOUR CODE HERE!
-    let call_numbers = get_call_numbers(&lines);
-     
-    let mut lines_iter = lines.into_iter();
-    lines_iter.next();  // skip call number line
-
     let mut cards: Vec<BingoCard> = Vec::new();
-    let mut card: &BingoCard;
-    let mut count = 0;
-    for (i, line) in lines_iter.enumerate() {
-        if line == "" {
-            // Next line begins new card
-            cards.push(BingoCard::new());
-            card = cards.last().unwrap();
+    let mut card = BingoCard::new();
+    let mut test = "";
+    let mut counter = 0;
+    let mut temp = Number {number: 0, marked: false };
 
+    for (i, line) in lines.iter().enumerate() {
+        if i == 0 {
+            continue;
+        } else if line == "" && !card.is_empty() {
+            cards.push(card);
+            card = BingoCard::new();
+            counter = 0;
+            println!();
         } else {
-            let numbers = line.split(",");
-            for (j, number) in numbers.enumerate() {
-                card.numbers[i][count] = &Number {
-                    number: FromStr::from_str(number).unwrap();
-                    mark
-                }
+            if line == "" {
+                // Reset counter
+                counter = 0;
+                card = BingoCard::new();
+                continue;
+            } 
+            // Loop through numbers in current line
+            for (j, num) in read_number_line(line).iter().enumerate() {
+                let n = u32::from_str(num);
+                // Check parse is Ok
+                let num = match n {
+                    Ok(num) => num,
+                    Err(error) => panic!("An error occured: {:?}", error),
+                };
+                card.numbers[counter][j] = Number {
+                    number: num,
+                    marked: false,
+                };
+            }
+            counter += 1;    
+        }
+    }    
+
+    Ok(())
+}
+
+fn read_number_line (line: &str) -> Vec<String> {
+    let mut numbers: Vec<String> = Vec::new();
+    let mut number_vec = Vec::new();
+
+    for (ch) in line.chars() {
+        if ch != ' ' && ch != '\n'{
+            print!("{}",ch);
+            io::stdout().flush().unwrap();
+            number_vec.push(ch);
+        } else {
+            print!(" ");
+            io::stdout().flush().unwrap();
+            if !number_vec.is_empty() {
+                numbers.push(number_vec.iter().cloned().collect::<String>());
+                number_vec = Vec::new();
             }
         }
     }
+    // Push last buffered number
+    numbers.push(number_vec.iter().cloned().collect::<String>());
 
-    Ok(())
+    println!();
+    numbers
 }
 
 fn get_call_numbers(lines: &Vec<&str>) -> Vec<u32>
@@ -91,9 +151,11 @@ fn get_call_numbers(lines: &Vec<&str>) -> Vec<u32>
     numbers
 }
 
-fn get_lines_vec(content: &str) -> Vec<&str> {
+fn get_lines_vec(content: &str) -> Vec<String> {
     // collect lines of content and return it
-    content.lines().collect()
+    content.lines()
+            .map(|s| s.to_string())
+            .collect()
 }
 
 #[cfg(test)]
